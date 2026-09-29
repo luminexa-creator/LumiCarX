@@ -1,0 +1,292 @@
+#include <Wire.h>
+#include <Adafruit_MotorShield.h>
+#include <SoftwareSerial.h>
+
+Adafruit_MotorShield AFMS = Adafruit_MotorShield();
+Adafruit_DCMotor *FL = AFMS.getMotor(1);
+Adafruit_DCMotor *FR = AFMS.getMotor(2);
+Adafruit_DCMotor *BL = AFMS.getMotor(3);
+Adafruit_DCMotor *BR = AFMS.getMotor(4);
+
+SoftwareSerial BT(10, 11); // RX=10, TX=11
+
+#define TRIG_FRONT 2
+#define ECHO_FRONT 3
+#define TRIG_BACK  4
+#define ECHO_BACK  5
+#define BUZZER     6
+#define LED_BLUE   7
+#define LED_GREEN  8
+#define LED_YELLOW 9
+#define MODE_BTN   12
+
+// Umbali wa kuzuia na kutoa tahadhari (kwa cm)
+#define FRONT_STOP 10
+#define FRONT_WARN 30  // Imerekebishwa kutoka 7 hadi 30
+#define BACK_STOP  5
+#define BACK_WARN  20  // Imerekebishwa kutoka 3 hadi 20
+
+#define SPEED_AUTO 130
+#define SPEED_CTRL 150
+
+#define DOUBLE_PRESS_TIME 500
+
+enum Mode { AUTOMOTIVE, CONTROLLING };
+Mode currentMode = CONTROLLING;
+
+bool btConnected = false;
+bool buzzerOn = false;
+unsigned long lastBeepToggle = 0;
+unsigned long lastBTDataTime = 0;
+
+void setup() {
+  pinMode(TRIG_FRONT, OUTPUT);
+  pinMode(ECHO_FRONT, INPUT);
+  pinMode(TRIG_BACK, OUTPUT);
+  pinMode(ECHO_BACK, INPUT);
+  pinMode(BUZZER, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_YELLOW, OUTPUT);
+  pinMode(MODE_BTN, INPUT_PULLUP);
+
+  AFMS.begin();
+  BT.begin(9600);
+
+  setMode(CONTROLLING);
+}
+
+void loop() {
+  checkButton();
+
+  long distFront = readDistance(TRIG_FRONT, ECHO_FRONT);
+  long distBack  = readDistance(TRIG_BACK, ECHO_BACK);
+
+  if (currentMode == CONTROLLING) {
+    handleControlling(distFront, distBack);
+  } else {
+    handleAutomotive(distFront, distBack);
+  }
+
+  updateBuzzer(distFront, distBack);
+}
+
+void setMode(Mode m) {
+  currentMode = m;
+  stopAll();
+
+  if (m == AUTOMOTIVE) {
+    digitalWrite(LED_BLUE, HIGH);
+    digitalWrite(LED_GREEN, LOW);
+    digitalWrite(LED_YELLOW, LOW);
+    btConnected = false;
+  } else {
+    digitalWrite(LED_BLUE, LOW);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_YELLOW, HIGH); // Inaanza ikiwa Njano mpaka BT ipokee data
+    btConnected = false;
+  }
+}
+
+void checkButton() {
+  static bool waitingSecond = false;
+  static unsigned long firstPressTime = 0;
+  static bool lastBtnState = HIGH;
+
+  bool currentBtnState = digitalRead(MODE_BTN);
+
+  if (lastBtnState == HIGH && currentBtnState == LOW) {
+    unsigned long now = millis();
+    if (!waitingSecond) {
+      waitingSecond = true;
+      firstPressTime = now;
+    } else {
+      if (now - firstPressTime <= DOUBLE_PRESS_TIME) {
+        setMode(currentMode == CONTROLLING ? AUTOMOTIVE : CONTROLLING);
+      }
+      waitingSecond = false;
+    }
+  }
+  lastBtnState = currentBtnState;
+
+  if (waitingSecond && (millis() - firstPressTime > DOUBLE_PRESS_TIME)) {
+    waitingSecond = false;
+  }
+}
+
+long readDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 25000);
+  if (duration == 0) return 999;
+  return duration * 0.034 / 2;
+}
+
+void handleControlling(long distFront, long distBack) {
+  // Angalia kama kuna data kutoka Bluetooth
+  if (BT.available()) {
+    btConnected = true;
+    lastBTDataTime = millis();
+    digitalWrite(LED_YELLOW, LOW);
+  } else if (millis() - lastBTDataTime > 2000) { 
+    // Kama kimya kizidi sekunde 2, tuchukulie connection imekatika
+    btConnected = false;
+    digitalWrite(LED_YELLOW, HIGH);
+    stopAll();
+    return;
+  }
+
+  if (!btConnected) {
+    stopAll();
+    return;
+  }
+
+  char cmd = BT.read();
+
+  if (cmd == 'F' || cmd == 'f') {
+    if (distFront > FRONT_STOP) moveForward(SPEED_CTRL);
+    else stopAll();
+  }
+  else if (cmd == 'B' || cmd == 'b') {
+    if (distBack > BACK_STOP) moveBackward(SPEED_CTRL);
+    else stopAll();
+  }
+  else if (cmd == 'L' || cmd == 'l') turnLeft(SPEED_CTRL);
+  else if (cmd == 'R' || cmd == 'r') turnRight(SPEED_CTRL);
+  else if (cmd == 'G' || cmd == 'g') forwardLeft(SPEED_CTRL);
+  else if (cmd == 'I' || cmd == 'i') forwardRight(SPEED_CTRL);
+  else if (cmd == 'H' || cmd == 'h') backwardLeft(SPEED_CTRL);
+  else if (cmd == 'J' || cmd == 'j') backwardRight(SPEED_CTRL);
+  else if (cmd == 'S' || cmd == 's') stopAll();
+}
+
+void handleAutomotive(long distFront, long distBack) {
+  if (distFront > FRONT_STOP) {
+    moveForward(SPEED_AUTO);
+    return;
+  }
+
+  // Kikwazo kikionekana mbele
+  stopAll();
+  delay(200);
+
+  // Rudi nyuma kidogo kama hakuna kikwazo nyuma
+  if (distBack > BACK_STOP) {
+    moveBackward(SPEED_AUTO);
+    delay(500);
+    stopAll();
+    delay(200);
+  }
+
+  // Geuka kushoto
+  turnLeft(SPEED_AUTO);
+  delay(500);
+  stopAll();
+  delay(200);
+
+  // Pima tena mbele
+  long newFront = readDistance(TRIG_FRONT, ECHO_FRONT);
+  if (newFront > FRONT_STOP) {
+    return;
+  }
+
+  // Bado kuna kikwazo, geuka kulia
+  turnRight(SPEED_AUTO);
+  delay(900);
+  stopAll();
+  delay(200);
+
+  newFront = readDistance(TRIG_FRONT, ECHO_FRONT);
+  if (newFront > FRONT_STOP) {
+    return;
+  }
+
+  // Bado njia imefungwa, rudi nyuma zaidi
+  if (distBack > BACK_STOP) {
+    moveBackward(SPEED_AUTO);
+    delay(700);
+    stopAll();
+    delay(200);
+  }
+}
+
+void updateBuzzer(long distFront, long distBack) {
+  unsigned long now = millis();
+  int interval = 0;
+
+  // Beep ya kuonyesha BT haijaconnect (Kwenye CONTROLLING Mode)
+  if (currentMode == CONTROLLING && !btConnected) {
+    interval = 500;
+  }
+  // Beep kulingana na umbali wa kikwazo mbele
+  else if (distFront <= FRONT_WARN) {
+    if (distFront <= FRONT_STOP) interval = 80;   // Sauti ya haraka sana
+    else if (distFront <= 20) interval = 180;
+    else interval = 350;
+  }
+  // Beep kulingana na umbali wa kikwazo nyuma
+  else if (distBack <= BACK_WARN) {
+    if (distBack <= BACK_STOP) interval = 80;
+    else interval = 200;
+  }
+
+  if (interval == 0) {
+    digitalWrite(BUZZER, LOW);
+    buzzerOn = false;
+    return;
+  }
+
+  if (now - lastBeepToggle >= (unsigned long)interval) {
+    lastBeepToggle = now;
+    buzzerOn = !buzzerOn;
+    digitalWrite(BUZZER, buzzerOn ? HIGH : LOW);
+  }
+}
+
+void moveForward(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd); BL->setSpeed(spd); BR->setSpeed(spd);
+  FL->run(FORWARD);  FR->run(FORWARD);  BL->run(FORWARD);  BR->run(FORWARD);
+}
+
+void moveBackward(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd); BL->setSpeed(spd); BR->setSpeed(spd);
+  FL->run(BACKWARD); FR->run(BACKWARD); BL->run(BACKWARD); BR->run(BACKWARD);
+}
+
+void turnLeft(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd); BL->setSpeed(spd); BR->setSpeed(spd);
+  FL->run(BACKWARD); FR->run(FORWARD);  BL->run(BACKWARD); BR->run(FORWARD);
+}
+
+void turnRight(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd); BL->setSpeed(spd); BR->setSpeed(spd);
+  FL->run(FORWARD);  FR->run(BACKWARD); BL->run(FORWARD);  BR->run(BACKWARD);
+}
+
+void forwardLeft(int spd) {
+  FL->setSpeed(spd / 2); FR->setSpeed(spd); BL->setSpeed(spd / 2); BR->setSpeed(spd);
+  FL->run(FORWARD);      FR->run(FORWARD);  BL->run(FORWARD);      BR->run(FORWARD);
+}
+
+void forwardRight(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd / 2); BL->setSpeed(spd); BR->setSpeed(spd / 2);
+  FL->run(FORWARD);  FR->run(FORWARD);      BL->run(FORWARD);  BR->run(FORWARD);
+}
+
+void backwardLeft(int spd) {
+  FL->setSpeed(spd / 2); FR->setSpeed(spd); BL->setSpeed(spd / 2); BR->setSpeed(spd);
+  FL->run(BACKWARD);     FR->run(BACKWARD); BL->run(BACKWARD);     BR->run(BACKWARD);
+}
+
+void backwardRight(int spd) {
+  FL->setSpeed(spd); FR->setSpeed(spd / 2); BL->setSpeed(spd); BR->setSpeed(spd / 2);
+  FL->run(BACKWARD); FR->run(BACKWARD);     BL->run(BACKWARD); BR->run(BACKWARD);
+}
+
+void stopAll() {
+  FL->run(RELEASE); FR->run(RELEASE); BL->run(RELEASE); BR->run(RELEASE);
+}
