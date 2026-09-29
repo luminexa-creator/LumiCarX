@@ -1,0 +1,123 @@
+Arduino Uno + Adafruit Motor Shield V2
+┌─────────────────────┐       ┌─────────────────────┐
+│ Motor Shield        │──────►│ Arduino Uno         │  Imeunganishwa
+│ (juu ya Uno)        │       │ (I2C: A4/A5)        │  moja kwa moja
+└─────────────────────┘       └─────────────────────┘
+
+
+》》》》》》》
+
+Motor ya Mbele Kushoto (FL)   Motor Shield M1       Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Terminal +  │──────►│ M1 +        │  Nyekundu
+│ Terminal −  │──────►│ M1 −        │  Nyeusi
+└─────────────┘       └─────────────┘
+
+Motor ya Mbele Kulia (FR)     Motor Shield M2       Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Terminal +  │──────►│ M2 +        │  Nyekundu
+│ Terminal −  │──────►│ M2 −        │  Nyeusi
+└─────────────┘       └─────────────┘
+
+Motor ya Nyuma Kushoto (BL)   Motor Shield M3       Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Terminal +  │──────►│ M3 +        │  Nyekundu
+│ Terminal −  │──────►│ M3 −        │  Nyeusi
+└─────────────┘       └─────────────┘
+
+Motor ya Nyuma Kulia (BR)     Motor Shield M4       Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Terminal +  │──────►│ M4 +        │  Nyekundu
+│ Terminal −  │──────►│ M4 −        │  Nyeusi
+└─────────────┘       └─────────────┘
+
+
+
+》》》》》》》 
+
+Betri (7.4V–12V)              Motor Shield EXT_PWR  Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Positive +  │──────►│ EXT_PWR +   │  Nyekundu
+│ Negative −  │──────►│ EXT_PWR −   │  Nyeusi
+└─────────────┘       └─────────────┘
+
+
+
+》》》》
+
+HC-05 Bluetooth              Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ VCC         │──────►│ 5V          │  Nyekundu
+│ GND         │──────►│ GND         │  Nyeusi
+│ TX          │──────►│ D10         │  Njano
+│ RX          │──[1kΩ]┤ D11         │  Kijani
+│             │──[2kΩ]┤ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+
+
+》》》》 
+
+
+
+HC-SR04 Mbele                Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ VCC         │──────►│ 5V          │  Nyekundu
+│ GND         │──────►│ GND         │  Nyeusi
+│ Trig        │──────►│ D2          │  Njano
+│ Echo        │──────►│ D3          │  Kijani
+└─────────────┘       └─────────────┘
+
+
+》》》》
+
+
+HC-SR04 Nyuma                Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ VCC         │──────►│ 5V          │  Nyekundu
+│ GND         │──────►│ GND         │  Nyeusi
+│ Trig        │──────►│ D4          │  Njano
+│ Echo        │──────►│ D5          │  Kijani
+└─────────────┘       └─────────────┘
+
+
+
+》》》》》
+
+Buzzer (Active)              Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Positive +  │──────►│ D6          │  Nyekundu
+│ Negative −  │──────►│ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+
+
+》》》》》》 
+
+LED Njano (Haija-connect)    Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Anode (+)   │──────►│ D9          │  Njano
+│ Cathode (−) │──220Ω─►│ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+》》》》 LED Kijani (Controlling)     Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Anode (+)   │──────►│ D8          │  Kijani
+│ Cathode (−) │──220Ω─►│ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+》》》》
+LED Bluu (Automotive)        Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Anode (+)   │──────►│ D7          │  Bluu
+│ Cathode (−) │──220Ω─►│ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+》》》》
+Mode Button (Double Press)   Arduino Uno           Wire Color
+┌─────────────┐       ┌─────────────┐
+│ Mguu 1      │──────►│ D12         │  Njano
+│ Mguu 2      │──────►│ GND         │  Nyeusi
+└─────────────┘       └─────────────┘
+
+
